@@ -1,0 +1,9 @@
+# Phase 0 generated artifacts
+telemetry.jsonl
+data/hospital_*.jsonl
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
