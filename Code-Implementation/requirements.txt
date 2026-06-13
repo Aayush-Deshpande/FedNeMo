@@ -1,3 +1,23 @@
+# --- Core pipeline (Phase 0-3, pure CPU) ---
 numpy>=1.24
 streamlit>=1.30
 pandas>=2.0
+
+# --- Phase 4: real model backend (HFBackend), CPU-dev usable ---
+transformers>=4.50
+peft>=0.14
+accelerate>=1.0
+datasets>=2.18
+sentencepiece>=0.2   # tokenizer for Llama-family models (Nemotron-Mini)
+
+# --- PyTorch ---
+# Installed separately because the wheel is platform/accelerator specific.
+#
+#   CPU (dev/smoke tests):
+#     pip install torch
+#
+#   AMD ROCm (the MI300X GPU session) -- DO NOT put this in this file:
+#     pip install torch --index-url https://download.pytorch.org/whl/rocm6.2
+#
+#   NVIDIA CUDA (if used instead):
+#     pip install torch --index-url https://download.pytorch.org/whl/cu121

@@ -1,0 +1,12 @@
+# Large third-party dataset (~300 MB) — regenerated into shards locally,
+# not committed. Download MedQA-USMLE separately.
+MedQA-USMLE/
+
+# Redundant zipped copy of the source tree
+Code-Implementation.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

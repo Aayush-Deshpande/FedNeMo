@@ -1,28 +1,30 @@
 """The driver loop.
 
 Ties everything together. Each round:
-  pull global -> every client trains -> each Update runs the filter chain ->
-  server aggregates -> compute placeholder loss -> run the live GIA demo ->
-  write telemetry.
+  pull global -> every client trains (via its ModelBackend) -> each Update runs
+  the filter chain -> server aggregates -> compute eval loss -> run the live GIA
+  demo -> write telemetry.
 
-Phase 1 additions:
-  - FedRand is now live (clients send only A or only B per round).
-  - A live attack demo runs each round on one sample record: the SAME update is
-    attacked once BEFORE the filter chain (unprotected) and once AFTER
-    (protected), proving FedRand neutralizes reconstruction.
+Backends:
+  - "stub" (default): Phase 0-3 fake training, pure CPU/NumPy, no model download.
+  - "hf": real LoRA fine-tune of a HuggingFace causal LM (Phase 4). One shared
+    model instance serves all simulated hospitals sequentially.
 
 Usage (from Code-Implementation/):
-    python -m fednemo.driver
+    python -m fednemo.driver            # stub backend
+    python -m fednemo.driver hf         # real model (downloads weights)
 """
 from __future__ import annotations
 
 import copy
+import sys
 
 from .attacker import attack
 from .client import Client
 from .data.loader import build_prompt, load_shard
 from .filters import default_chain, run_chain
-from .schema import LAYERS, init_weights
+from .model_backend import make_backend
+from .schema import init_weights
 from .server import Server
 
 N_CLIENTS = 3
@@ -30,34 +32,47 @@ ROUNDS = 10
 CLIP_NORM = 1.0   # L1 clipping bound for DP
 EPSILON = 1.0     # per-round privacy budget
 
-
-def placeholder_loss(global_state: dict) -> float:
-    """Not a real loss -- just a number that moves so the dashboard has a line.
-
-    Mean absolute value of all A matrices. Replaced by real eval in Phase 4.
-    """
-    vals = [abs(global_state[l]["A"]).mean() for l in LAYERS]
-    return sum(vals) / len(vals)
+# --- HFBackend (Phase 4) settings -------------------------------------------
+MODEL_NAME = "nvidia/Nemotron-Mini-4B-Instruct"
+SEQ_LEN = 128
+LOCAL_STEPS = 2
 
 
-def _sample_text() -> str:
+def _sample_text(prompt_fn=None) -> str:
     """One representative record's prompt, used as the GIA demo target."""
+    builder = prompt_fn or build_prompt
     try:
         rows = load_shard("hospital_0")
         if rows:
-            return build_prompt(rows[0])
+            return builder(rows[0])
     except FileNotFoundError:
         pass
     return "Patient reports increased thirst and fatigue over two weeks."
 
 
-def run(n_clients: int = N_CLIENTS, rounds: int = ROUNDS,
-        clip_norm: float = CLIP_NORM, epsilon: float = EPSILON) -> None:
+def run(backend_kind: str = "stub", n_clients: int = N_CLIENTS,
+        rounds: int = ROUNDS, clip_norm: float = CLIP_NORM,
+        epsilon: float = EPSILON, model_name: str = MODEL_NAME) -> None:
     Server.reset_telemetry()
-    clients = [Client(f"hospital_{i}", seed=i) for i in range(n_clients)]
-    server = Server(init_weights())
+
+    if backend_kind == "hf":
+        from .data.medqa import build_medqa_prompt
+        backend = make_backend(
+            "hf", model_name=model_name, prompt_fn=build_medqa_prompt,
+            seq_len=SEQ_LEN, local_steps=LOCAL_STEPS,
+        )
+        clients = [Client(f"hospital_{i}", backend=backend, seed=i)
+                   for i in range(n_clients)]
+        eval_backend = backend
+        server = Server(backend.init_global_weights())
+        target_text = _sample_text(prompt_fn=build_medqa_prompt)
+    else:
+        clients = [Client(f"hospital_{i}", seed=i) for i in range(n_clients)]
+        eval_backend = clients[0].backend
+        server = Server(init_weights())
+        target_text = _sample_text()
+
     chain = default_chain(clip_norm=clip_norm, epsilon=epsilon)
-    target_text = _sample_text()
 
     for rnd in range(rounds):
         g = server.get_global()
@@ -72,7 +87,7 @@ def run(n_clients: int = N_CLIENTS, rounds: int = ROUNDS,
         protected_capture = updates[0]                # fragmented by FedRand
 
         server.aggregate(updates, clip_norm=clip_norm, epsilon=epsilon)
-        loss = placeholder_loss(server.get_global())
+        loss = eval_backend.eval_loss(server.get_global())
 
         # Live GIA demo: attack the same record before vs after protection.
         attack_result = {
@@ -91,4 +106,5 @@ def run(n_clients: int = N_CLIENTS, rounds: int = ROUNDS,
 
 
 if __name__ == "__main__":
-    run()
+    kind = sys.argv[1] if len(sys.argv) > 1 else "stub"
+    run(backend_kind=kind)

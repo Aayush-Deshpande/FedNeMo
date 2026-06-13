@@ -10,9 +10,32 @@ from __future__ import annotations
 import numpy as np
 
 # --- Toy LoRA dimensions (small so it runs in seconds on CPU) ---------------
-# Real values get swapped in Phase 4 when Nemotron-Mini-4B arrives.
+# Used by StubBackend (Phase 0-3). The real model path (HFBackend, Phase 4)
+# does NOT use these: it registers real layer ids at runtime via set_layers().
 LAYERS = ["layer0", "layer1"]   # two fake "targeted layers"
 R, D, K = 8, 64, 64             # rank, out_dim, in_dim
+
+# --- Real LoRA config (Phase 4, HFBackend) ----------------------------------
+# Nemotron-Mini-4B-Instruct is Llama-architecture-based, so the standard
+# Llama projection names apply. Verified/overridden at GPU-session time by
+# loading the real model and printing named_modules() (see GPU_SESSION_CHECKLIST.md).
+LORA_RANK = 32
+TARGET_MODULES = [
+    "q_proj", "k_proj", "v_proj", "o_proj",   # attention
+    "gate_proj", "up_proj", "down_proj",      # MLP
+]
+
+
+def set_layers(layer_ids: list[str]) -> None:
+    """Register the real per-module LoRA layer ids at runtime.
+
+    Mutates the module-level LAYERS list *in place* so that components which
+    did `from .schema import LAYERS` (e.g. server.py) observe the update
+    without re-import. This is how the HFBackend tells the server which
+    layer ids to aggregate over, keeping the Update contract intact for a
+    real model with heterogeneous LoRA shapes.
+    """
+    LAYERS[:] = list(layer_ids)
 
 
 def init_weights() -> dict:
