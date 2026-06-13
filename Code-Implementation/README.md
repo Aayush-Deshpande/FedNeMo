@@ -1,26 +1,30 @@
 # FedNeMo — Code Implementation
 
 This is the **source directory** for the FedNeMo implementation. It is built in
-phases. Everything here right now is **Phase 0**: a working but fully stubbed
-federated-learning skeleton.
+phases. See `phases-records.md` for exactly what each phase added and what works.
 
-## What Phase 0 is
+## Quickest way to confirm it works (after cloning)
 
-Phase 0 builds the *turning loop* and nothing else:
+```bash
+cd Code-Implementation
+pip install -r requirements.txt
+python -m fednemo.smoke_test
+```
 
-- a **server** holding LoRA-shaped global weights, doing sample-weighted FedAvg;
-- **N identical fake hospitals** that "train" by nudging numbers with noise;
-- a **3-stage filter chain** (FedRand / DP / Quant) where every filter is a
-  pass-through identity for now;
-- a **telemetry file** (`telemetry.jsonl`) the server appends to each round;
-- a **Streamlit dashboard** that reads that file.
+Then open **`RUN_REPORT.md`**. It is written in plain English: if `RESULT` says
+`✅ WORKING`, every check passed and the Phase 0 + Phase 1 pipeline is sound on
+your machine. If something is broken, the report names the failing check (or
+shows the crash traceback). You do NOT need Streamlit or a GPU for this.
 
-There is **no real model, no privacy math, no quantization, no FLARE, no GPU**.
-When loss numbers move across rounds and the dashboard draws them, Phase 0 is done.
+## What the phases are (short version)
 
-The single contract that glues every component together is the `Update` dict
-(see `fednemo/schema.py`). Every later phase swaps one component's internals
-without ever changing that contract.
+- **Phase 0**: the federated loop turns, fully stubbed (fake training, identity
+  filters). Proves the wiring.
+- **Phase 1**: real FedRand (each hospital sends only one LoRA matrix per round)
+  + a live Gradient Inversion Attack demo (unprotected = readable record,
+  protected = noise).
+
+Full detail in `phases-records.md`.
 
 ## Layout
 
@@ -30,40 +34,35 @@ fednemo/
   data/split.py    # one-time: full.jsonl -> hospital_N.jsonl
   data/loader.py   # read a shard, build prompts
   server.py        # global state + FedAvg + telemetry write
-  filters.py       # FedRand/DP/Quant -- all identity for now
+  filters.py       # FedRand (real) -> DP (stub) -> Quant (stub)
   client.py        # fake "training", returns an Update
+  attacker.py      # live GIA demo prop
   driver.py        # the loop that ties it all together
   dashboard.py     # streamlit, reads telemetry.jsonl
+  smoke_test.py    # one command -> RUN_REPORT.md verdict
 data/full.jsonl    # ~50 synthetic rows
 requirements.txt
 ```
 
-## How to run
-
-From inside `Code-Implementation/`:
+## Run the full loop + dashboard
 
 ```bash
+cd Code-Implementation
 pip install -r requirements.txt
-
-# 1. split the synthetic dataset into N hospital shards
-python -m fednemo.data.split 3
-
-# 2. run the federated loop (writes telemetry.jsonl)
-python -m fednemo.driver
-
-# 3. (separate terminal) watch the dashboard
-streamlit run fednemo/dashboard.py
+python -m fednemo.data.split 3      # make 3 hospital shards
+python -m fednemo.driver            # run the federated loop -> telemetry.jsonl
+streamlit run fednemo/dashboard.py  # watch it (optional)
 ```
 
-## Definition of done for Phase 0
+## Two readable outputs
 
-`python -m fednemo.driver` runs N fake hospitals through 10 rounds without error,
-`telemetry.jsonl` has 10 lines, and the dashboard renders a moving loss curve and
-a per-hospital sent-matrix table. No real ML, and that's correct.
+- **`RUN_REPORT.md`** — human-readable pass/fail verdict from `smoke_test.py`.
+  This is the file to open to answer "is it working?".
+- **`telemetry.jsonl`** — one JSON line per round (machine-shaped), consumed by
+  the dashboard.
 
 ## What comes next (not now)
 
-- **Phase 1**: make `FedRandFilter` real (drop one matrix) + fake attack panel.
 - **Phase 2**: real Laplacian DP + RDP accountant.
 - **Phase 3**: real adaptive quantization.
 - **Phase 4**: swap toy model for Nemotron-Mini-4B + NeMo LoRA.
