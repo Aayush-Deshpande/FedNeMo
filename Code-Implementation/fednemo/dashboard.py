@@ -26,8 +26,8 @@ def load_telemetry() -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-st.set_page_config(page_title="FedNeMo — Phase 1", layout="wide")
-st.title("FedNeMo — Federated Round Telemetry (Phase 1)")
+st.set_page_config(page_title="FedNeMo — Phase 2", layout="wide")
+st.title("FedNeMo — Federated Round Telemetry (Phase 2)")
 
 rows = load_telemetry()
 if not rows:
@@ -41,12 +41,20 @@ with col1:
     st.subheader("Training loss (placeholder metric)")
     st.line_chart(df.set_index("round")["loss"])
 with col2:
-    st.subheader("Cumulative privacy budget (stub)")
+    st.subheader("Cumulative privacy budget (RDP)")
     st.line_chart(df.set_index("round")["eps_total"])
-    st.metric("eps_total", f"{df['eps_total'].iloc[-1]:.1f}")
+    eps_val = df['eps_total'].iloc[-1]
+    st.metric("eps_total", f"{eps_val:.2f}")
+    # Color-coded budget indicator
+    if eps_val < 5:
+        st.success(f"🟢 Budget healthy: ε = {eps_val:.2f}")
+    elif eps_val < 8:
+        st.warning(f"🟡 Budget moderate: ε = {eps_val:.2f}")
+    else:
+        st.error(f"🔴 Budget high: ε = {eps_val:.2f}")
 
 st.subheader("FedRand: which matrix each hospital sent each round")
-st.caption("Live in Phase 1 — values alternate between A and B instead of 'both'.")
+st.caption("Live in Phase 2 — values alternate between A and B (FedRand), with real Laplacian DP noise applied.")
 sent_df = pd.DataFrame([r["sent"] for r in rows], index=[r["round"] for r in rows])
 sent_df.index.name = "round"
 st.dataframe(sent_df, use_container_width=True)
@@ -78,5 +86,6 @@ if attack_rows:
 
 st.caption(
     "Dashboard reads telemetry.jsonl only. Refresh after running more rounds. "
-    "Real DP (eps) and quantization panels arrive in Phases 2-3."
+    "FedRand and Laplacian DP are live (Phase 1-2). "
+    "Quantization and bandwidth panels arrive in Phase 3."
 )

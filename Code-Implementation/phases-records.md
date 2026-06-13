@@ -144,10 +144,47 @@ Update = {
 
 ## Roadmap (not yet built)
 
-- **Phase 2:** real Laplacian DP (clip to norm C, add `Lap(C/eps)` noise) + RDP
-  privacy accountant — makes `eps_total` real and the attack fail even when a
-  full matrix leaks.
+- ~~**Phase 2:** real Laplacian DP (clip to norm C, add `Lap(C/eps)` noise) + RDP
+  privacy accountant~~ **DONE**
 - **Phase 3:** real adaptive quantization (entropy-driven bit-width) +
   bandwidth-saved panel.
 - **Phase 4:** swap the toy model for Nemotron-Mini-4B + NeMo LoRA on GPU.
 - **Phase 5:** move transport into NVIDIA FLARE (DXO filters + ModelController).
+
+---
+
+## Phase 2 — Laplacian DP + RDP privacy accountant
+
+**Goal:** make the DP filter real so that `meta["epsilon"]` is no longer 0.0 and
+`eps_total` is no longer a round counter. After this phase, the attacker fails
+even on a full A+B update because of noise injection, independent of FedRand.
+
+### Files changed
+
+| File | Change |
+| :--- | :--- |
+| `fednemo/filters.py` | **`LaplacianDPFilter` is now real.** L1-clips each tensor to norm `C` (default 1.0), injects `Lap(C/ε)` noise (default ε=1.0), and records the per-round ε in `meta["epsilon"]`. `default_chain()` now accepts `clip_norm` and `epsilon` parameters. |
+| `fednemo/server.py` | **`RDPAccountant` added.** Pure-Python Rényi DP composition for the Laplace mechanism. Accumulates per-round RDP guarantees across 9 alpha orders, converts to tight (ε, δ)-DP. `Server.eps_total` is now a property backed by the accountant, not a counter. `aggregate()` accepts `clip_norm` and `epsilon` to feed the accountant. |
+| `fednemo/driver.py` | Added `CLIP_NORM = 1.0` and `EPSILON = 1.0` constants. Passes them through `default_chain()` and `server.aggregate()`. |
+| `fednemo/dashboard.py` | Title updated to Phase 2. Privacy budget chart relabeled "RDP". Added color-coded budget indicator: 🟢 healthy (ε<5), 🟡 moderate (5≤ε<8), 🔴 high (ε≥8). |
+| `fednemo/smoke_test.py` | Two new checks: (8) DP filter adds noise and clips, (9) RDP accountant tracks real `eps_total`. Report footer updated to Phase 0+1+2. |
+
+### What works in Phase 2
+
+- **Laplacian DP is live.** Every tensor is L1-clipped and noised before
+  transmission. The noise scale is `C/ε` where C is the clipping bound.
+- **RDP accountant** computes tight cumulative (ε, δ)-DP guarantees using
+  Rényi divergence composition. After 10 rounds with ε=1.0 per round,
+  `eps_total ≈ 10.1` (vs. naïve composition = 10.0).
+- **The attacker demo now fails on DP-noised updates** even when both A and B
+  are present, because `meta["epsilon"] > 0` triggers the failure path.
+- **Dashboard** shows real RDP-tracked privacy spend with color-coded indicators.
+- **Smoke test** passes 9/9 checks including 2 new DP-specific ones.
+
+### What is faked / not real in Phase 2
+
+- Quantization is still identity; `bits` is still 32.
+- Model, loss, and training are still Phase 0 stubs.
+- The clipping bound C=1.0 is a reasonable default for the toy tensors but
+  would need tuning for real model updates in Phase 4.
+

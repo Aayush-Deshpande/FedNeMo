@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import random
 
+import numpy as np
+
 
 class FedRandFilter:
     """Keep only one LoRA matrix (A or B) per round; drop the other entirely.
@@ -40,10 +42,29 @@ class FedRandFilter:
 
 
 class LaplacianDPFilter:
-    """Phase 0/1: identity. Phase 2: clip to norm C, add Lap(C/eps) noise."""
+    """Clip each tensor to L1-norm C, then add Lap(C/eps) noise.
+
+    Phase 2: real local differential privacy.  Sensitivity is bounded by
+    clipping, then Laplacian noise is added at scale C/eps.  After this
+    filter, meta["epsilon"] records the per-round budget consumed.
+    """
+
+    def __init__(self, clip_norm: float = 1.0, epsilon: float = 1.0):
+        self.clip_norm = clip_norm
+        self.epsilon = epsilon
 
     def __call__(self, update: dict) -> dict:
-        update["meta"]["epsilon"] = 0.0
+        for key in list(update["tensors"]):
+            t = update["tensors"][key]
+            # L1 clip
+            norm = float(np.abs(t).sum())
+            if norm > self.clip_norm:
+                t = t * (self.clip_norm / norm)
+            # Laplace noise: scale = C / eps
+            scale = self.clip_norm / self.epsilon
+            t = t + np.random.laplace(0, scale, size=t.shape)
+            update["tensors"][key] = t
+        update["meta"]["epsilon"] = self.epsilon
         return update
 
 
@@ -61,9 +82,9 @@ def run_chain(update: dict, filters: list) -> dict:
     return update
 
 
-def default_chain() -> list:
+def default_chain(clip_norm: float = 1.0, epsilon: float = 1.0) -> list:
     """Canonical order: FedRand -> DP -> Quant."""
-    return [FedRandFilter(), LaplacianDPFilter(), AdaptiveQuantFilter()]
+    return [FedRandFilter(), LaplacianDPFilter(clip_norm, epsilon), AdaptiveQuantFilter()]
 
 
 if __name__ == "__main__":

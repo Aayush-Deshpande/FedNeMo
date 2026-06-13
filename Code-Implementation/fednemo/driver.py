@@ -27,6 +27,8 @@ from .server import Server
 
 N_CLIENTS = 3
 ROUNDS = 10
+CLIP_NORM = 1.0   # L1 clipping bound for DP
+EPSILON = 1.0     # per-round privacy budget
 
 
 def placeholder_loss(global_state: dict) -> float:
@@ -49,11 +51,12 @@ def _sample_text() -> str:
     return "Patient reports increased thirst and fatigue over two weeks."
 
 
-def run(n_clients: int = N_CLIENTS, rounds: int = ROUNDS) -> None:
+def run(n_clients: int = N_CLIENTS, rounds: int = ROUNDS,
+        clip_norm: float = CLIP_NORM, epsilon: float = EPSILON) -> None:
     Server.reset_telemetry()
     clients = [Client(f"hospital_{i}", seed=i) for i in range(n_clients)]
     server = Server(init_weights())
-    chain = default_chain()
+    chain = default_chain(clip_norm=clip_norm, epsilon=epsilon)
     target_text = _sample_text()
 
     for rnd in range(rounds):
@@ -68,7 +71,7 @@ def run(n_clients: int = N_CLIENTS, rounds: int = ROUNDS) -> None:
         updates = [run_chain(u, chain) for u in raw_updates]
         protected_capture = updates[0]                # fragmented by FedRand
 
-        server.aggregate(updates)
+        server.aggregate(updates, clip_norm=clip_norm, epsilon=epsilon)
         loss = placeholder_loss(server.get_global())
 
         # Live GIA demo: attack the same record before vs after protection.

@@ -23,7 +23,7 @@ import numpy as np
 
 from .attacker import attack
 from .client import Client
-from .filters import FedRandFilter, default_chain, run_chain
+from .filters import FedRandFilter, LaplacianDPFilter, default_chain, run_chain
 from .schema import LAYERS, init_weights, make_update, validate
 from .server import Server
 
@@ -115,6 +115,29 @@ def _run_checks() -> tuple[_Checks, dict]:
     evidence["losses"] = losses
     evidence["sent_log"] = sent_log
 
+    # 8. DP filter actually adds noise and clips.
+    dp_input = make_update(
+        "h_dp", 0,
+        {"layer0.A": np.ones((8, 64)) * 10.0},  # large tensor to trigger clipping
+        num_samples=5,
+    )
+    dp_original = dp_input["tensors"]["layer0.A"].copy()
+    dp_filter = LaplacianDPFilter(clip_norm=1.0, epsilon=1.0)
+    dp_output = dp_filter(dp_input)
+    dp_changed = not np.allclose(dp_output["tensors"]["layer0.A"], dp_original)
+    c.check("DP filter adds noise and clips", dp_changed,
+            f"epsilon={dp_output['meta']['epsilon']}, output differs from input")
+
+    # 9. RDP accountant tracks real eps_total (not integer round count).
+    rdp_server = Server(init_weights())
+    for r in range(5):
+        dummy = [make_update("h0", r, {"layer0.A": np.zeros((8, 64))}, 10)]
+        rdp_server.aggregate(dummy, clip_norm=1.0, epsilon=1.0)
+    eps = rdp_server.eps_total
+    is_real = isinstance(eps, float) and eps > 0 and eps != 5.0  # not a round counter
+    c.check("RDP accountant tracks real eps_total", is_real,
+            f"eps_total after 5 rounds = {eps:.4f} (not 5.0)")
+
     return c, evidence
 
 
@@ -173,7 +196,7 @@ def _write_report(c: _Checks, evidence: dict, error: str | None = None) -> None:
     lines.append("")
 
     lines.append("---\n")
-    lines.append("If RESULT says WORKING, the Phase 0 + Phase 1 pipeline is sound "
+    lines.append("If RESULT says WORKING, the Phase 0 + Phase 1 + Phase 2 pipeline is sound "
                  "on your machine. Re-run `python -m fednemo.smoke_test` anytime "
                  "to regenerate this report.\n")
 

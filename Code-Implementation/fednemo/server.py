@@ -11,6 +11,7 @@ The aggregation math is kept pure so those swaps don't touch it.
 from __future__ import annotations
 
 import json
+import math
 import os
 
 import numpy as np
@@ -21,16 +22,57 @@ TELEMETRY_PATH = os.path.join(os.path.dirname(__file__), "..", "telemetry.jsonl"
 TELEMETRY_PATH = os.path.normpath(TELEMETRY_PATH)
 
 
+class RDPAccountant:
+    """Rényi DP composition across rounds for the Laplace mechanism.
+
+    Accumulates per-round RDP guarantees at several alpha orders, then
+    converts to (eps, delta)-DP via the standard RDP-to-DP conversion.
+    Pure Python, no external library needed.
+    """
+
+    def __init__(self, delta: float = 1e-5):
+        self.delta = delta
+        self._alphas = [1.5, 2, 3, 4, 5, 8, 16, 32, 64]
+        self._rdp_eps = [0.0] * len(self._alphas)
+        self._rounds = 0
+
+    def step(self, epsilon_per_round: float, clip_norm: float) -> None:
+        """Record one round of Laplace mechanism usage."""
+        b = clip_norm / epsilon_per_round  # Laplace scale
+        for i, alpha in enumerate(self._alphas):
+            rdp_eps = (1 / (alpha - 1)) * math.log(
+                (alpha / (2 * alpha - 1)) * math.exp((alpha - 1) / b)
+                + ((alpha - 1) / (2 * alpha - 1)) * math.exp(-alpha / b)
+            )
+            self._rdp_eps[i] += rdp_eps
+        self._rounds += 1
+
+    @property
+    def eps_total(self) -> float:
+        """Convert accumulated RDP to (eps, delta)-DP; return tightest eps."""
+        if self._rounds == 0:
+            return 0.0
+        return min(
+            rdp + math.log(1 / self.delta) / (alpha - 1)
+            for alpha, rdp in zip(self._alphas, self._rdp_eps)
+        )
+
+
 class Server:
     def __init__(self, init_state: dict | None = None):
         self.g = init_state if init_state is not None else init_weights()
-        self.eps_total = 0.0
+        self.accountant = RDPAccountant()
+
+    @property
+    def eps_total(self) -> float:
+        return self.accountant.eps_total
 
     def get_global(self) -> dict:
         """What clients pull at the start of a round."""
         return self.g
 
-    def aggregate(self, updates: list[dict]) -> dict:
+    def aggregate(self, updates: list[dict],
+                  clip_norm: float = 1.0, epsilon: float = 1.0) -> dict:
         """Sample-weighted FedAvg.
 
         Only averages matrices that are actually present in the Update. With
@@ -52,7 +94,7 @@ class Server:
                 # updates carry deltas; apply them to current global state
                 self.g[layer][mat] = self.g[layer][mat] + avg_delta
 
-        self.eps_total += 1.0  # STUB accountant -- replaced in Phase 2
+        self.accountant.step(epsilon, clip_norm)
         return self.g
 
     def write_telemetry(self, rnd: int, updates: list[dict], loss: float,
