@@ -130,7 +130,7 @@ def _write_report(c: _Checks, evidence: dict, error: str | None = None) -> None:
                      "Something is wrong with the install or the code.\n")
         lines.append("### Error\n")
         lines.append("```\n" + error + "\n```\n")
-        with open(REPORT_PATH, "w") as f:
+        with open(REPORT_PATH, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
         return
 
@@ -177,7 +177,7 @@ def _write_report(c: _Checks, evidence: dict, error: str | None = None) -> None:
                  "on your machine. Re-run `python -m fednemo.smoke_test` anytime "
                  "to regenerate this report.\n")
 
-    with open(REPORT_PATH, "w") as f:
+    with open(REPORT_PATH, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 
