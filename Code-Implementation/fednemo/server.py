@@ -1,6 +1,9 @@
 """Orchestrator / server: holds global LoRA state, aggregates, writes telemetry.
 
-Phase 0 aggregation is plain sample-weighted FedAvg, in-memory, single process.
+Aggregation is plain sample-weighted FedAvg, in-memory, single process. From
+Phase 1 on, FedRand means a client sends only A or only B in a given round, so
+aggregation only averages matrices that are actually present.
+
 The privacy accountant is a stub that just counts rounds. In Phase 2 the stub is
 replaced by a real RDP accountant; in Phase 5 the transport moves into FLARE.
 The aggregation math is kept pure so those swaps don't touch it.
@@ -30,9 +33,9 @@ class Server:
     def aggregate(self, updates: list[dict]) -> dict:
         """Sample-weighted FedAvg.
 
-        Only averages matrices that are actually present in the Update. This
-        matters from Phase 1 on, when FedRand means a client sends only A or
-        only B in a given round.
+        Only averages matrices that are actually present in the Update. With
+        FedRand, in any given round some hospitals send only A and some only B;
+        if no hospital sent a given matrix this round, it simply isn't updated.
         """
         for layer in LAYERS:
             for mat in ("A", "B"):
@@ -52,11 +55,17 @@ class Server:
         self.eps_total += 1.0  # STUB accountant -- replaced in Phase 2
         return self.g
 
-    def write_telemetry(self, rnd: int, updates: list[dict], loss: float) -> None:
+    def write_telemetry(self, rnd: int, updates: list[dict], loss: float,
+                        attack: dict | None = None) -> None:
         """Append one JSON line per round. The dashboard tails this file.
 
         The dashboard NEVER imports this module -- file is the only coupling, so
         the dashboard can never slow training down.
+
+        `attack` (Phase 1+) carries the live GIA demo result:
+            {"original": str,
+             "unprotected": {"success": bool, "reconstruction": str},
+             "protected":   {"success": bool, "reconstruction": str}}
         """
         record = {
             "round": rnd,
@@ -65,6 +74,8 @@ class Server:
             "sent": {u["client_id"]: u["meta"]["sent_matrix"] for u in updates},
             "bits": {u["client_id"]: u["meta"]["bits"] for u in updates},
         }
+        if attack is not None:
+            record["attack"] = attack
         with open(TELEMETRY_PATH, "a") as f:
             f.write(json.dumps(record) + "\n")
 
