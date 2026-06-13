@@ -69,10 +69,44 @@ class LaplacianDPFilter:
 
 
 class AdaptiveQuantFilter:
-    """Phase 0/1: identity. Phase 3: pick bit-width from entropy, quantize."""
+    """Pick bit-width from the client's data-entropy, then quantize tensors.
+
+    Phase 3: real adaptive quantization.  Higher entropy (more diverse patient
+    population) → more precision needed → higher bit-width.  Lower entropy
+    (specialized clinic) → aggressive compression is safe.
+
+    Thresholds calibrated from real ICD-code entropy in the demo data:
+    all 3 IID hospitals have entropy ≈ 3.5, landing at 8-bit.  With non-IID
+    specialty hospitals (entropy < 2.0), 4-bit or 2-bit would kick in.
+    """
+
+    @staticmethod
+    def _pick_bits(entropy: float) -> int:
+        """Entropy → bit-width mapping (data-calibrated thresholds)."""
+        if entropy >= 3.0:
+            return 8
+        if entropy >= 2.0:
+            return 4
+        return 2
+
+    @staticmethod
+    def _quantize_dequantize(tensor, bits: int):
+        """Uniform quantization: snap values to a 2^bits-level grid."""
+        levels = 2 ** bits
+        t_min, t_max = float(tensor.min()), float(tensor.max())
+        if t_min == t_max:
+            return tensor  # constant tensor, nothing to quantize
+        scale = (t_max - t_min) / (levels - 1)
+        quantized = np.round((tensor - t_min) / scale)
+        return quantized * scale + t_min
 
     def __call__(self, update: dict) -> dict:
-        update["meta"]["bits"] = 32
+        bits = self._pick_bits(update["meta"]["entropy"])
+        for key in list(update["tensors"]):
+            update["tensors"][key] = self._quantize_dequantize(
+                update["tensors"][key], bits
+            )
+        update["meta"]["bits"] = bits
         return update
 
 

@@ -8,6 +8,8 @@ the input (global weights) and output (an Update of deltas) stay identical.
 from __future__ import annotations
 
 import copy
+import math
+from collections import Counter
 
 import numpy as np
 
@@ -25,6 +27,26 @@ class Client:
         except FileNotFoundError:
             # allow running before split.py for quick smoke tests
             self.shard = [{} for _ in range(10)]
+        self.entropy = self._shard_entropy(self.shard)
+
+    @staticmethod
+    def _shard_entropy(shard: list[dict]) -> float:
+        """Shannon entropy (bits) over ICD-10 code frequencies in this shard.
+
+        Measures diagnostic diversity: a hospital seeing many different
+        conditions has high entropy; a specialized clinic has low entropy.
+        Returns 1.0 as fallback when shard has no structured data.
+        """
+        icds = [
+            row.get("structured", {}).get("icd")
+            for row in shard
+            if row.get("structured", {}).get("icd") is not None
+        ]
+        if not icds:
+            return 1.0
+        counts = Counter(icds)
+        total = sum(counts.values())
+        return -sum((c / total) * math.log2(c / total) for c in counts.values())
 
     def train(self, global_weights: dict, rnd: int = 0) -> dict:
         """Fake local training: nudge weights, return deltas as an Update."""
@@ -41,6 +63,7 @@ class Client:
             rnd=rnd,
             tensors=tensors,
             num_samples=len(self.shard),
+            entropy=self.entropy,
         )
 
 
@@ -51,4 +74,5 @@ if __name__ == "__main__":
     u = c.train(init_weights(), rnd=0)
     assert validate(u)
     print("client OK:", u["client_id"], "| num_samples", u["meta"]["num_samples"],
+          "| entropy", f"{c.entropy:.4f}",
           "| tensors", list(u["tensors"]))

@@ -26,8 +26,8 @@ def load_telemetry() -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-st.set_page_config(page_title="FedNeMo — Phase 2", layout="wide")
-st.title("FedNeMo — Federated Round Telemetry (Phase 2)")
+st.set_page_config(page_title="FedNeMo — Phase 3", layout="wide")
+st.title("FedNeMo — Federated Round Telemetry (Phase 3)")
 
 rows = load_telemetry()
 if not rows:
@@ -54,10 +54,37 @@ with col2:
         st.error(f"🔴 Budget high: ε = {eps_val:.2f}")
 
 st.subheader("FedRand: which matrix each hospital sent each round")
-st.caption("Live in Phase 2 — values alternate between A and B (FedRand), with real Laplacian DP noise applied.")
+st.caption("Values alternate between A and B (FedRand), with Laplacian DP noise "
+           "and adaptive quantization applied.")
 sent_df = pd.DataFrame([r["sent"] for r in rows], index=[r["round"] for r in rows])
 sent_df.index.name = "round"
 st.dataframe(sent_df, use_container_width=True)
+
+# --- Adaptive Quantization --------------------------------------------------
+st.subheader("Adaptive quantization: bit-width per hospital per round")
+st.caption(
+    "Bit-width is driven by each hospital's ICD-code Shannon entropy. "
+    "With IID round-robin sharding all hospitals have near-identical entropy "
+    "(≈3.5), so they correctly receive the same 8-bit precision. "
+    "In a non-IID deployment (specialty hospitals), bit-widths would diverge."
+)
+bits_df = pd.DataFrame([r["bits"] for r in rows], index=[r["round"] for r in rows])
+bits_df.index.name = "round"
+st.dataframe(bits_df, use_container_width=True)
+
+# Bandwidth savings
+bw_rows = [r for r in rows if "bandwidth" in r]
+if bw_rows:
+    col_bw1, col_bw2 = st.columns(2)
+    with col_bw1:
+        saved_series = [r["bandwidth"]["saved_pct"] for r in bw_rows]
+        avg_saved = sum(saved_series) / len(saved_series)
+        st.metric("Avg bandwidth saved", f"{avg_saved:.1f}%")
+    with col_bw2:
+        total_baseline = sum(r["bandwidth"]["baseline_bytes"] for r in bw_rows)
+        total_actual = sum(r["bandwidth"]["actual_bytes"] for r in bw_rows)
+        st.metric("Cumulative bytes saved",
+                  f"{(total_baseline - total_actual):,} bytes")
 
 # --- Live Gradient Inversion Attack demo -----------------------------------
 attack_rows = [r for r in rows if "attack" in r]
@@ -86,6 +113,6 @@ if attack_rows:
 
 st.caption(
     "Dashboard reads telemetry.jsonl only. Refresh after running more rounds. "
-    "FedRand and Laplacian DP are live (Phase 1-2). "
-    "Quantization and bandwidth panels arrive in Phase 3."
+    "FedRand, Laplacian DP, and adaptive quantization are live (Phase 1-3). "
+    "Real model (Nemotron-Mini-4B) arrives in Phase 4."
 )

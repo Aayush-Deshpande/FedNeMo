@@ -146,8 +146,8 @@ Update = {
 
 - ~~**Phase 2:** real Laplacian DP (clip to norm C, add `Lap(C/eps)` noise) + RDP
   privacy accountant~~ **DONE**
-- **Phase 3:** real adaptive quantization (entropy-driven bit-width) +
-  bandwidth-saved panel.
+- ~~**Phase 3:** real adaptive quantization (entropy-driven bit-width) +
+  bandwidth-saved panel.~~ **DONE**
 - **Phase 4:** swap the toy model for Nemotron-Mini-4B + NeMo LoRA on GPU.
 - **Phase 5:** move transport into NVIDIA FLARE (DXO filters + ModelController).
 
@@ -188,3 +188,57 @@ even on a full A+B update because of noise injection, independent of FedRand.
 - The clipping bound C=1.0 is a reasonable default for the toy tensors but
   would need tuning for real model updates in Phase 4.
 
+---
+
+## Phase 3 — Adaptive quantization (entropy-driven bit-width)
+
+**Goal:** make the third filter real. Each hospital's ICD-code diversity drives
+its quantization precision. After this phase, `meta["bits"]` is no longer 32,
+tensors carry real quantization artifacts, and telemetry tracks bandwidth savings.
+
+### Entropy calibration
+
+Shannon entropy computed over ICD-10 code frequencies in each hospital's shard:
+
+| Hospital | Records | Unique ICD | Entropy (bits) | Bit-width |
+| :--- | :--- | :--- | :--- | :--- |
+| hospital_0 | 17 | 13 | 3.5725 | 8 |
+| hospital_1 | 17 | 13 | 3.6169 | 8 |
+| hospital_2 | 16 | 12 | 3.5000 | 8 |
+
+Thresholds calibrated from these values: `≥ 3.0 → 8-bit`, `≥ 2.0 → 4-bit`,
+`< 2.0 → 2-bit`. With IID round-robin splitting all hospitals have near-identical
+entropy (~3.5), so FedNeMo correctly assigns them the same 8-bit precision. In a
+non-IID deployment (specialty hospitals with entropy < 2.0), 4-bit or 2-bit would
+activate, giving up to 93.75% bandwidth savings.
+
+### Files changed
+
+| File | Change |
+| :--- | :--- |
+| `fednemo/client.py` | **Real Shannon entropy.** `_shard_entropy()` computes H over ICD-10 code frequencies at init. `train()` passes `entropy=self.entropy` to `make_update()`. Graceful fallback to 1.0 when shard has no structured data. |
+| `fednemo/filters.py` | **`AdaptiveQuantFilter` is now real.** `_pick_bits()` maps entropy to bit-width via data-calibrated thresholds. `_quantize_dequantize()` applies uniform quantization: snaps tensor values to a `2^bits`-level grid (real information loss). |
+| `fednemo/server.py` | **Bandwidth accounting** in `write_telemetry()`: baseline bytes (float32), actual bytes (per-client bit-width), `saved_pct`. Also records per-client entropy. |
+| `fednemo/dashboard.py` | Title updated to Phase 3. New panels: bit-width per hospital table, average bandwidth saved metric, cumulative bytes saved. IID-context caption. |
+| `fednemo/smoke_test.py` | Two new checks: (10) quant filter picks different bits from different entropy, (11) bandwidth savings are non-zero. Report footer updated to Phase 0+1+2+3. |
+
+### What works in Phase 3
+
+- **Adaptive quantization is live.** Each tensor is snapped to a `2^bits`-level
+  grid after DP noise injection. Information loss is genuine.
+- **Entropy-driven bit-width.** Hospitals with higher ICD diversity (entropy ≥ 3.0)
+  get 8-bit; specialized hospitals (entropy < 2.0) would get 2-bit.
+- **Bandwidth savings** of 75% with 8-bit quantization (all 3 IID hospitals).
+  Non-IID deployment with 4-bit hospitals would see 87.5% savings.
+- **Dashboard** shows per-client bit-widths, average bandwidth saved, and
+  cumulative bytes saved.
+- **Attacker** correctly fails on quantized updates (`bits < 32`) — zero code
+  changes across three phases because the attacker was designed to check all
+  three meta fields from Phase 1.
+- **Smoke test** passes 11/11 checks.
+
+### What is faked / not real in Phase 3
+
+- Model, loss, and training are still Phase 0 stubs.
+- With IID data, all hospitals get the same bit-width; non-IID divergence is
+  documented but not demonstrated until real deployment data.

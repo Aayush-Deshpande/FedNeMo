@@ -23,7 +23,8 @@ import numpy as np
 
 from .attacker import attack
 from .client import Client
-from .filters import FedRandFilter, LaplacianDPFilter, default_chain, run_chain
+from .filters import (AdaptiveQuantFilter, FedRandFilter, LaplacianDPFilter,
+                      default_chain, run_chain)
 from .schema import LAYERS, init_weights, make_update, validate
 from .server import Server
 
@@ -137,6 +138,35 @@ def _run_checks() -> tuple[_Checks, dict]:
     is_real = isinstance(eps, float) and eps > 0 and eps != 5.0  # not a round counter
     c.check("RDP accountant tracks real eps_total", is_real,
             f"eps_total after 5 rounds = {eps:.4f} (not 5.0)")
+    # 10. Quant filter picks bits from entropy and quantizes tensors.
+    qf = AdaptiveQuantFilter()
+    low_e = make_update("h_low", 0, {"layer0.A": np.ones((8, 64)) * 5.0}, 10, entropy=1.5)
+    high_e = make_update("h_high", 0, {"layer0.A": np.ones((8, 64)) * 5.0}, 10, entropy=3.5)
+    low_out = qf(copy.deepcopy(low_e))
+    high_out = qf(copy.deepcopy(high_e))
+    bits_differ = low_out["meta"]["bits"] != high_out["meta"]["bits"]
+    c.check("Quant filter picks bits from entropy", bits_differ,
+            f"entropy 1.5 -> {low_out['meta']['bits']}-bit, "
+            f"entropy 3.5 -> {high_out['meta']['bits']}-bit")
+
+    # 11. Bandwidth savings are non-zero with full pipeline.
+    Server.reset_telemetry()
+    bw_clients = [Client(f"hospital_{i}", seed=i) for i in range(3)]
+    bw_server = Server(init_weights())
+    bw_chain = default_chain()
+    gw = bw_server.get_global()
+    bw_updates = [run_chain(cl.train(gw, 0), bw_chain) for cl in bw_clients]
+    any_compressed = any(u["meta"]["bits"] < 32 for u in bw_updates)
+    # Compute bandwidth saved
+    baseline = sum(sum(t.size for t in u["tensors"].values()) * 4 for u in bw_updates)
+    actual = sum(
+        sum(t.size for t in u["tensors"].values()) * u["meta"]["bits"] // 8
+        for u in bw_updates
+    )
+    saved_pct = round((1 - actual / baseline) * 100, 1) if baseline > 0 else 0.0
+    c.check("Bandwidth savings are non-zero", any_compressed and saved_pct > 0,
+            f"bits per client: {[u['meta']['bits'] for u in bw_updates]}, "
+            f"saved {saved_pct}%")
 
     return c, evidence
 
@@ -196,9 +226,9 @@ def _write_report(c: _Checks, evidence: dict, error: str | None = None) -> None:
     lines.append("")
 
     lines.append("---\n")
-    lines.append("If RESULT says WORKING, the Phase 0 + Phase 1 + Phase 2 pipeline is sound "
-                 "on your machine. Re-run `python -m fednemo.smoke_test` anytime "
-                 "to regenerate this report.\n")
+    lines.append("If RESULT says WORKING, the Phase 0 + Phase 1 + Phase 2 + Phase 3 pipeline "
+                 "is sound on your machine. Re-run `python -m fednemo.smoke_test` "
+                 "anytime to regenerate this report.\n")
 
     with open(REPORT_PATH, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

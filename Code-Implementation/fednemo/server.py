@@ -115,6 +115,22 @@ class Server:
             "eps_total": float(self.eps_total),
             "sent": {u["client_id"]: u["meta"]["sent_matrix"] for u in updates},
             "bits": {u["client_id"]: u["meta"]["bits"] for u in updates},
+            "entropy": {u["client_id"]: round(u["meta"]["entropy"], 4) for u in updates},
+        }
+        # Bandwidth accounting: actual bytes vs float32 baseline
+        baseline_bytes = sum(
+            sum(t.size for t in u["tensors"].values()) * 4  # float32
+            for u in updates
+        )
+        actual_bytes = sum(
+            sum(t.size for t in u["tensors"].values()) * u["meta"]["bits"] // 8
+            for u in updates
+        )
+        record["bandwidth"] = {
+            "baseline_bytes": baseline_bytes,
+            "actual_bytes": actual_bytes,
+            "saved_pct": round((1 - actual_bytes / baseline_bytes) * 100, 1)
+                if baseline_bytes > 0 else 0.0,
         }
         if attack is not None:
             record["attack"] = attack
