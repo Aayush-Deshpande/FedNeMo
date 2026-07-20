@@ -107,27 +107,7 @@ function HeroSection() {
         transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
         style={{ textAlign: 'center' }}>
 
-        {/* Black Hole Core Logo */}
-        <motion.div
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
-          style={{ marginBottom: '1.5rem', display: 'inline-block' }}>
-          <img
-            src="/logo.png"
-            alt="FedNeMo Black Hole Core"
-            style={{
-              height: '110px',
-              width: '180px',
-              borderRadius: '24px',
-              boxShadow: '0 0 50px rgba(255, 175, 80, 0.4), 0 0 100px rgba(118, 185, 0, 0.2)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              objectFit: 'cover'
-            }}
-          />
-        </motion.div>
-
-        <div className="eyebrow" style={{ justifyContent: 'center', marginBottom: '1.5rem' }}>
+        <div className="eyebrow" style={{ justifyContent: 'center', marginBottom: '2rem' }}>
           Federated LLM Fine-Tuning &nbsp;·&nbsp; Medical NLP &nbsp;·&nbsp; NVIDIA Nemotron
         </div>
 
