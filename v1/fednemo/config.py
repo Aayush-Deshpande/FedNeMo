@@ -25,18 +25,18 @@ from typing import List
 # --------------------------------------------------------------------------- #
 # This file lives at e:\FedNeMo\v1\fednemo\config.py  ->  V1_DIR = e:\FedNeMo\v1
 V1_DIR = Path(__file__).resolve().parent.parent
-DATASETS_DIR = V1_DIR / "Datasets"
+DATASETS_DIR = V1_DIR / "data"          # dataset(s)
+DOCS_DIR = V1_DIR / "docs"              # generated reports / results
 
-PTBXL_DIR = DATASETS_DIR / "ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.1"
-PTBXL_DATABASE_CSV = PTBXL_DIR / "ptbxl_database.csv"
-PTBXL_SCP_CSV = PTBXL_DIR / "scp_statements.csv"
-UCI_CSV = DATASETS_DIR / "heart_disease_uci.csv"
+# Local Nemotron checkpoint. Defaults to a folder inside the project
+# (v1/Nemotron-Mini-4B-Instruct/) which is NOT committed (~16GB); place the
+# downloaded checkpoint there, or override with the FEDNEMO_MODEL_PATH env var.
+MODEL_PATH = os.environ.get("FEDNEMO_MODEL_PATH", str(V1_DIR / "Nemotron-Mini-4B-Instruct"))
 
-# Local Nemotron checkpoint (full HF weights, already downloaded).
-MODEL_PATH = os.environ.get("FEDNEMO_MODEL_PATH", r"D:\Code\models\Nemotron-Mini-4B-Instruct")
-
-# Artifacts (trained global adapter, logs) written here.
+# Generated run outputs (audit trail, eval, holdout, training reports).
 ARTIFACTS_DIR = V1_DIR / "artifacts"
+# Trained global adapter(s).
+ADAPTERS_DIR = V1_DIR / "adapters"
 
 # --------------------------------------------------------------------------- #
 # Federation
