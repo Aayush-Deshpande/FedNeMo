@@ -38,3 +38,6 @@ Papers/
 MDs/
 Original-docs/
 FedNeMo_Structured/
+
+# keep the small Symptom2Disease dataset (needed to run), ignore the rest
+!v1/Datasets/Symptom2Disease.csv
