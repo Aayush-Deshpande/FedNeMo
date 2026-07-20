@@ -111,37 +111,12 @@ function HeroSection() {
           <span className="t-green">FedNeMo</span>
         </h1>
 
-        <p className="t-large" style={{ margin: '0 auto 1.5rem', textAlign: 'center' }}>
-          A local, privacy-preserving federated fine-tuning system for large language models — trained entirely on your local machine with formal differential privacy guarantees.
+        <p className="t-large" style={{ margin: '0 auto 2.5rem', textAlign: 'center' }}>
+          A local, privacy-preserving federated fine-tuning system for large language models — trained entirely on your machine, with no servers, no cloud, and formal differential privacy guarantees.
         </p>
 
-        <div style={{
-          background: 'rgba(118,185,0,0.08)',
-          border: '1px solid rgba(118,185,0,0.3)',
-          borderRadius: '12px',
-          padding: '1rem 1.5rem',
-          maxWidth: '820px',
-          margin: '0 auto 2.2rem auto',
-          fontSize: '0.98rem',
-          color: '#ccc',
-          lineHeight: '1.6'
-        }}>
-          ⚡ <strong>Live Demo Note:</strong> Because the total project footprint (including 4B model weights & local nodes) is <strong>~45 GB</strong>, hosting an online browser demo here is unfeasible. However, <strong>all research claims made here are 100% legit and validated against the actual implemented project</strong>. Clone the repo and try it yourself on your own hardware!
-        </div>
-
-        {/* CTA buttons */}
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
-          <a href="https://github.com/Aayush-Deshpande/FedNeMo" target="_blank" rel="noreferrer" className="btn-primary">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            Clone Repo & Try Yourself
-          </a>
-          <a href="#compare" className="btn-secondary">
-            View Validated Claims
-          </a>
-        </div>
-
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          {['Total Project Size ~45 GB', '100% Claims Validated', 'Clone & Run Locally', '87.5% Accuracy', '0.86 Macro-F1', '5 Federated Nodes', '4 Rounds', 'Laplace DP', 'FedRand', '8-bit Quantization'].map(t => (
+          {['87.5% Accuracy', '0.86 Macro-F1', '5 Federated Nodes', '4 Rounds', 'Laplace DP', 'FedRand', '8-bit Quantization', '6GB GPU'].map(t => (
             <motion.span key={t} className="chip"
               whileHover={{ scale: 1.1, borderColor: '#76b900' }}>
               {t}
