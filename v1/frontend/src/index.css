@@ -234,25 +234,26 @@ body::-webkit-scrollbar{display:none;}
 /* ─── nav ─── */
 .nav{
   position:fixed;top:1.2rem;left:50%;transform:translateX(-50%);
-  z-index:100;display:flex;align-items:center;gap:.25rem;
-  background:rgba(8,8,10,0.8);border:1px solid var(--border);
-  border-radius:100px;padding:.35rem .75rem;
+  z-index:100;display:flex;align-items:center;gap:.15rem;
+  background:rgba(8,8,10,0.85);border:1px solid var(--border);
+  border-radius:100px;padding:.25rem .6rem;
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   box-shadow:0 8px 32px rgba(0,0,0,0.6), 0 0 15px rgba(118,185,0,0.08);
-  max-width:92vw;white-space:nowrap;overflow-x:auto;scrollbar-width:none;
+  max-width:96vw;white-space:nowrap;overflow:hidden;
+  scrollbar-width:none;-ms-overflow-style:none;
 }
-.nav::-webkit-scrollbar{display:none;}
+.nav::-webkit-scrollbar{display:none !important;width:0 !important;height:0 !important;}
 .nav a{
-  font-size:.65rem;font-weight:600;letter-spacing:.12em;
+  font-size:.62rem;font-weight:600;letter-spacing:.1em;
   text-transform:uppercase;color:var(--muted);text-decoration:none;
-  padding:.35rem .75rem;border-radius:100px;flex-shrink:0;
+  padding:.3rem .6rem;border-radius:100px;flex-shrink:0;
   transition:color .25s,background .25s,border-color .25s;
 }
 .nav a:hover{color:#fff;background:var(--green-dim);}
 .nav a.nav-brand{
-  font-weight:800;color:#fff;letter-spacing:.05em;
+  font-weight:800;color:#fff;letter-spacing:.04em;
   background:rgba(118,185,0,0.15);border:1px solid rgba(118,185,0,0.3);
-  margin-right:.2rem;
+  margin-right:.15rem;
 }
 .nav a.nav-brand:hover{background:rgba(118,185,0,0.25);border-color:var(--green);}
 
