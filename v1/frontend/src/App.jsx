@@ -31,10 +31,6 @@ function Nav() {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 1.5, duration: 0.8 }}>
-      <a href="#hero" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', paddingRight: '0.4rem', textDecoration: 'none' }}>
-        <img src="/logo.png" alt="FedNeMo Logo" style={{ height: '22px', width: '22px', borderRadius: '50%', objectFit: 'cover' }} />
-        <span style={{ fontWeight: 800, color: '#fff', fontSize: '0.85rem', letterSpacing: '-0.02em' }}>FedNeMo</span>
-      </a>
       {links.map(l => <a key={l.href} href={l.href}>{l.label}</a>)}
       <a href="https://github.com/Aayush-Deshpande/FedNeMo" target="_blank" rel="noreferrer" style={{ color: '#76b900', fontWeight: 700 }}>
         GitHub ↗
