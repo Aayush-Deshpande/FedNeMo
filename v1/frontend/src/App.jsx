@@ -575,10 +575,95 @@ function PrivacySection() {
 
           <FadeRight delay={0.2}>
             <div style={{ position: 'sticky', top: '15vh', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div className="panel">
-                <div className="panel-title">Round Architecture</div>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: '.62rem', color: '#76b900', lineHeight: 2.2, marginTop: '0.75rem' }}>
-                  {`Node₁ →[train]→[FedRand]→[DP]→[Quant]─┐\nNode₂ →[train]→[FedRand]→[DP]→[Quant]─┤\nNode₃ →[train]→[FedRand]→[DP]→[Quant]─┼→ Orchestrator\nNode₄ →[train]→[FedRand]→[DP]→[Quant]─┤      ↓\nNode₅ →[train]→[FedRand]→[DP]→[Quant]─┘  Trust×Entropy\n                                               ↓\n                                         Global Adapter`}
+              <div style={{
+                background: 'rgba(8, 8, 14, 0.75)',
+                border: '1px solid rgba(118, 185, 0, 0.3)',
+                borderRadius: '16px',
+                padding: '1.25rem',
+                backdropFilter: 'blur(16px)',
+                boxShadow: '0 12px 36px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.6rem' }}>
+                  <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.88rem', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#76b900', boxShadow: '0 0 10px #76b900' }}></span>
+                    Round Architecture Pipeline
+                  </div>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.62rem', color: '#76b900', background: 'rgba(118,185,0,0.12)', padding: '0.2rem 0.55rem', borderRadius: '100px', border: '1px solid rgba(118,185,0,0.3)', fontWeight: 700 }}>
+                    5 Nodes · 4 Communication Rounds
+                  </span>
+                </div>
+
+                {/* Stage Flow Header */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem', marginBottom: '1rem' }}>
+                  {[
+                    { label: 'Train', icon: '⚡', desc: 'LoRA r=16', color: '#fff' },
+                    { label: 'FedRand', icon: '🎲', desc: 'ρ = 0.5', color: '#bef264' },
+                    { label: 'Laplace DP', icon: '🛡️', desc: 'η = 0.25', color: '#76b900' },
+                    { label: '8-bit Quant', icon: '📦', desc: 'Affine', color: '#88d400' },
+                  ].map((st) => (
+                    <div key={st.label} style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '8px',
+                      padding: '0.35rem 0.25rem',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: st.color }}>
+                        {st.icon} {st.label}
+                      </div>
+                      <div style={{ fontSize: '0.58rem', color: '#888', fontFamily: 'var(--mono)', marginTop: '0.1rem' }}>{st.desc}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Nodes Rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '1rem' }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <div key={n} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'rgba(118,185,0,0.04)',
+                      border: '1px solid rgba(118,185,0,0.15)',
+                      borderRadius: '8px',
+                      padding: '0.35rem 0.6rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#76b900' }}></span>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: '0.68rem', color: '#fff', fontWeight: 700 }}>Node {n}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                        <span style={{ fontSize: '0.58rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: '#ccc', fontFamily: 'var(--mono)' }}>Train</span>
+                        <span style={{ fontSize: '0.55rem', color: '#555' }}>→</span>
+                        <span style={{ fontSize: '0.58rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(118,185,0,0.18)', color: '#bef264', fontFamily: 'var(--mono)', fontWeight: 700 }}>FedRand</span>
+                        <span style={{ fontSize: '0.55rem', color: '#555' }}>→</span>
+                        <span style={{ fontSize: '0.58rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(118,185,0,0.1)', color: '#76b900', fontFamily: 'var(--mono)' }}>DP</span>
+                        <span style={{ fontSize: '0.55rem', color: '#555' }}>→</span>
+                        <span style={{ fontSize: '0.58rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: '#aaa', fontFamily: 'var(--mono)' }}>8-bit</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Converging Orchestrator */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(118,185,0,0.18), rgba(10,10,16,0.95))',
+                  border: '1px solid rgba(118,185,0,0.4)',
+                  borderRadius: '10px',
+                  padding: '0.75rem 0.85rem',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 18px rgba(118,185,0,0.12)'
+                }}>
+                  <div style={{ fontSize: '0.65rem', fontFamily: 'var(--mono)', color: '#76b900', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '0.15rem' }}>
+                    Central Aggregator & Orchestrator
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 700 }}>
+                    Trust × Entropy Aggregation: <span style={{ color: '#bef264', fontFamily: 'var(--mono)', fontSize: '0.72rem' }}>w_i = α·TM(i) + (1−α)·H(i)</span>
+                  </div>
+                  <div style={{ fontSize: '0.64rem', color: '#aaa', marginTop: '0.2rem' }}>
+                    Produces Global LoRA Adapter Update Δ_global
+                  </div>
                 </div>
               </div>
 
