@@ -1,0 +1,34 @@
+{
+  "node_id": 0,
+  "num_records": 216,
+  "num_classes_present": 24,
+  "class_distribution": {
+    "Acne": 9,
+    "drug reaction": 9,
+    "urinary tract infection": 9,
+    "Dengue": 9,
+    "Jaundice": 9,
+    "Bronchial Asthma": 9,
+    "Migraine": 9,
+    "allergy": 9,
+    "Dimorphic Hemorrhoids": 9,
+    "Typhoid": 9,
+    "peptic ulcer disease": 9,
+    "Psoriasis": 9,
+    "Pneumonia": 9,
+    "Impetigo": 9,
+    "Malaria": 9,
+    "Hypertension": 9,
+    "Varicose Veins": 9,
+    "Cervical spondylosis": 9,
+    "Common Cold": 9,
+    "Arthritis": 9,
+    "gastroesophageal reflux disease": 9,
+    "diabetes": 9,
+    "Fungal infection": 9,
+    "Chicken pox": 9
+  },
+  "sources": {
+    "symptom2disease": 216
+  }
+}

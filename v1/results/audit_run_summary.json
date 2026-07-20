@@ -1,0 +1,8 @@
+{
+  "tag": "final",
+  "num_clients": 5,
+  "num_rounds_completed": 4,
+  "adapter_path": "E:\\FedNeMo\\v1\\artifacts\\global_adapter_final.pt",
+  "final_eps_total_rdp": 16.03430649757676,
+  "total_wall_time_s": 2450.04
+}
